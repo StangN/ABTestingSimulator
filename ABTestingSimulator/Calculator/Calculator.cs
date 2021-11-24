@@ -10,133 +10,113 @@ namespace ABTestingSimulator.Calculator
     public class Calculator
     {
         public readonly CalculatorContext _context = new();
-        public async Task SimulateABTests()
+        public async Task<List<ABTest>> SimulateABTests(int users)
         {
-            for (int i = 0;i < 366 ;i++)
-            {
-                if (await _context.ABTests.Where(ab => ab.TestState == TestState.Running).CountAsync() < 2)
-                {
-                    await LaunchABTests(i);
-                    await UpdateOngoingTests(i);
-                }
-                else
-                {
-                    await UpdateOngoingTests(i);
-                }
-            }
+            await LaunchABTests();
+            await UpdateOngoingTests(users);
+            var result = GetTestResults();
+            _context.ABTests.RemoveRange(_context.ABTests);
+            await _context.SaveChangesAsync();
+            return result;
+            
         }
 
-        public async Task UpdateOngoingTests(int x)
+        public async Task UpdateOngoingTests(int users)
         {
             var abTests = await _context.ABTests.Where(ab => ab.TestState == TestState.Running).ToListAsync();
-            foreach (ABTest i in abTests)
+            foreach (ABTest test in abTests)
             {
-                await SeedUsers(i);
-                await CalculateTotalLoss(i);
-                if (i.StartDate.AddDays(30) < new DateTime(2021,01,01).AddDays(x))
+                var task = SeedUsers(test, users);
+                task.Wait();
+                CalculateTotalLoss(test);
+                if (test.IsATest)
                 {
-                    if (await CheckSuccessOfTests(x))
-                    {
-                        return;
-                    }
+                    await CheckSuccessOfTests();
                 }
             }
         }
 
-        private async Task LaunchABTests(int i)
+        public List<ABTest> GetTestResults()
+        {
+            var result = new List<ABTest>
+            {
+                _context.ABTests.Where(ab => ab.IsATest == true && ab.TestState != 0).OrderBy(ab => ab.Id).Last(),
+                _context.ABTests.Where(ab => ab.IsATest == false).OrderBy(ab => ab.Id).Last()
+            };
+            return result;
+        }
+
+
+        private async Task LaunchABTests()
         {
             var rand = new Random();
             var abTest1 = new ABTest
             {
-                StartDate = new DateTime(2021, 01, 01).AddDays(i),
                 Impact = 0,
                 TotalProfit = 0,
                 TestState = TestState.Running,
                 IsATest = false
             };
-            for (var a = 0;a < 4;a++)
+
+            var abTest2 = new ABTest
             {
-                var abTest2 = new ABTest
-                {
-                    StartDate = new DateTime(2021, 01, 01).AddDays(i),
-                    Impact = rand.Next(-20, 20),
-                    TotalProfit = 0,
-                    TestState = TestState.Running,
-                    IsATest = true
-                };
-                _context.ABTests.Add(abTest2);
-            }
-            
+                Impact = rand.Next(-20, 20),
+                TotalProfit = 0,
+                TestState = TestState.Running,
+                IsATest = true
+            };
             _context.ABTests.Add(abTest1);
+            _context.ABTests.Add(abTest2);
             
             await _context.SaveChangesAsync();
         }
 
-        private async Task CalculateTotalLoss(ABTest abTest)
+        private void CalculateTotalLoss(ABTest abTest)
         {
             int profit = _context.DemoModelUsers.Where(dmu => dmu.ABTestId == abTest.Id).Select(dmu => dmu.Profit).Sum();
             abTest.TotalProfit = profit;
-            await _context.SaveChangesAsync();
+            _context.SaveChanges();
         }
 
-        private async Task<bool> CheckSuccessOfTests(int x)
+        private async Task CheckSuccessOfTests()
         {
             ABTest initial = _context.ABTests.Where(ab => ab.TestState == TestState.Running && ab.IsATest == false).FirstOrDefault();
             List<ABTest> ongoingTests = await _context.ABTests.Where(ab => ab.TestState == TestState.Running && ab.IsATest == true).ToListAsync();
             foreach (var test in ongoingTests)
             {
-                if (test.TotalProfit / initial.TotalProfit > 1.3)
+                if (test.TotalProfit > initial.TotalProfit)
                 {
                     test.TestState = TestState.Succeded;
-                    test.EndDate = new DateTime(2021, 01, 01).AddDays(x);
                     await _context.SaveChangesAsync();
-                    return true;
                 }
-                else if (test.StartDate.AddDays(60) < new DateTime(2021, 01, 01).AddDays(x))
+                else
                 {
-                    if (test.TotalProfit > initial.TotalProfit)
-                    {
-                        test.TestState = TestState.Succeded;
-                        test.EndDate = new DateTime(2021, 01, 01).AddDays(x);
-                    }
-                    else
-                    {
-                        test.TestState = TestState.Failed;
-                        test.EndDate = new DateTime(2021, 01, 01).AddDays(x);
-                        ongoingTests[1].EndDate = new DateTime(2021, 01, 01).AddDays(x);
-                    }
+                    test.TestState = TestState.Failed;
                     await _context.SaveChangesAsync();
                 }
             }
-            if (!_context.ABTests.Where(ab => ab.TestState == TestState.Running && ab.IsATest == true).Any())
-            {
-                initial.TestState = TestState.Failed;
-                initial.EndDate = new DateTime(2021, 01, 01).AddDays(x);
-                await _context.SaveChangesAsync();
-                return true;
-            }
-            
-            return false;
+            initial.TestState = TestState.Succeded;
+
         }
 
-        private async Task SeedUsers(ABTest abTest)
+        private async Task SeedUsers(ABTest abTest, int amountOfUsers)
         {
             var rand = new Random();
             var users = new List<DemoModelUser>();
-            for (int x = 0; x < 300; x++)
+            for (int x = 0; x < amountOfUsers; x++)
             {
                 double warmth = Math.Round(rand.NextDouble(),2);
                 int profit = 0;
-                double updatedWarmth = (warmth * (1 + ((double)abTest.Impact / 100)));
-                if (0.5 < updatedWarmth)
+                double updatedWarmth = warmth * (1 + ((double)abTest.Impact / 100));
+                if (0.49 < updatedWarmth)
                 {
-                        profit = 10;
+                    profit = 10;
                 }
 
                 var user = new DemoModelUser
                 {
                     ABTest = abTest,
-                    Warmth = warmth,
+                    Warmth = updatedWarmth,
                     Profit = profit
                 };
                 users.Add(user);

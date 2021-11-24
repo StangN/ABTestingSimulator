@@ -15,12 +15,6 @@ namespace ABTestingSimulator.Models
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
 
-        [Column(TypeName = "date")]
-        public DateTime StartDate { get; set; }
-
-        [Column(TypeName = "date")]
-        public DateTime EndDate { get; set; }
-
         public int Impact { get; set; }
 
         public int TotalProfit { get; set; }
