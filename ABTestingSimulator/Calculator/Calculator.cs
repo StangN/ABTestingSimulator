@@ -10,11 +10,16 @@ namespace ABTestingSimulator.Calculator
     public class Calculator
     {
         public readonly CalculatorContext _context = new();
-        public async Task<List<ABTest>> SimulateABTests(int users)
+        public async Task<List<ABTest>> SimulateABTests(int users, int impact, int testAmount)
         {
-            await LaunchABTests();
-            await UpdateOngoingTests(users);
-            var result = GetTestResults();
+            var result = new List<ABTest>();
+            for(int i = 0; i < testAmount; i++)
+            {
+                await LaunchABTests(impact);
+                await UpdateOngoingTests(users);
+                result.AddRange(GetTestResults());
+            }
+            
             _context.ABTests.RemoveRange(_context.ABTests);
             await _context.SaveChangesAsync();
             return result;
@@ -47,7 +52,7 @@ namespace ABTestingSimulator.Calculator
         }
 
 
-        private async Task LaunchABTests()
+        private async Task LaunchABTests(int impact)
         {
             var rand = new Random();
             var abTest1 = new ABTest
@@ -60,7 +65,7 @@ namespace ABTestingSimulator.Calculator
 
             var abTest2 = new ABTest
             {
-                Impact = rand.Next(-20, 20),
+                Impact = impact,
                 TotalProfit = 0,
                 TestState = TestState.Running,
                 IsATest = true

@@ -7,7 +7,9 @@ $(function () {
     var alpha = 0.05;
     var beta = 0.80;
     var min_effect = 0.1;
-    var conversion_rate = 0.5 ;
+    var conversion_rate = 0.5;
+    var impact = 0.05;
+    
     $("input").keyup(function () {
         calculate();
     });
@@ -33,52 +35,55 @@ $(function () {
         }
     }
 
-    $("a.btn-find").click(function () {
-        simulate();
-    })
-
     $('#minimal-detectable-effect').val(min_effect * 100);
     $('#baseline-conversion').val(conversion_rate * 100);
+    $('#impact').val(impact * 100);
     calculate();
 
-    $('#baseline-conversion, #minimal-detectable-effect').keyup(function () {
+    $('#baseline-conversion, #minimal-detectable-effect, #impact').keyup(function () {
         min_effect = $('#minimal-detectable-effect').val() / 100;
         conversion_rate = $('#baseline-conversion').val() / 100;
+        impact = $('#impact').val() / 100;
         calculate();
     });
 
     function simulate() {
         $.ajax({
-            url: $("#calculation-url").val() + "?users=" + $("#result_count").text(),
+            url: $("#calculation-url").val() + "?users=" + $("#result_count").text() + "&impact=" + $("#impact").val() + "&testAmount=" + $("#test-amount").val(),
             type: "GET",
             success: function (result) {
                 var tableBody = document.createElement("tbody");
 
                 for (i of (result)) {
-                    if (i == result[0]) {
-                        var pValue = getPValue(result[0], result[1], 6);
-                        var tableRow = tableBody.insertRow();
-
-                        var conversionAmount = tableRow.insertCell();
-                        conversionAmount.appendChild(document.createTextNode(((i.totalProfit) / 10).toString()));
-
-                        var impact = tableRow.insertCell();
-                        impact.appendChild(document.createTextNode(i.impact.toString()));
-
-                        var outcome = tableRow.insertCell();
-                        if (i.testState == 1) {
-                            totalImpact = totalImpact * (i.impact * 0.01 + 1)
-                            outcome.appendChild(document.createTextNode("Passed"));
-                        }
-                        else {
-                            outcome.appendChild(document.createTextNode("Failed"));
-                        }
-                        var credibility = tableRow.insertCell();
-                        credibility.appendChild(document.createTextNode((roundPercentage((1 - pValue) * 100).toString() + "%")));
-
-                        var significance = tableRow.insertCell();
-                        significance.appendChild(document.createTextNode(roundPercentage(pValue * 100).toString() + "%"));
+                    let pValue = 0
+                    if (i.isATest == true) {
+                        pValue = getPValue(i, result[1], 6);
                     }
+                    else {
+                        pValue = null
+                    }
+                    var tableRow = tableBody.insertRow();
+
+                    var conversionAmount = tableRow.insertCell();
+                    conversionAmount.appendChild(document.createTextNode(((i.totalProfit) / 10).toString()));
+
+                    var impact = tableRow.insertCell();
+                    impact.appendChild(document.createTextNode(i.impact.toString()));
+
+                    var outcome = tableRow.insertCell();
+                    if (i.testState == 1) {
+                        totalImpact = totalImpact * (i.impact * 0.01 + 1)
+                        outcome.appendChild(document.createTextNode("Passed"));
+                    }
+                    else {
+                        outcome.appendChild(document.createTextNode("Failed"));
+                    }
+                    var credibility = tableRow.insertCell();
+                    credibility.appendChild(document.createTextNode((roundPercentage((1 - pValue) * 100).toString() + "%")));
+
+                    var significance = tableRow.insertCell();
+                    significance.appendChild(document.createTextNode(roundPercentage(pValue * 100).toString() + "%"));
+                    
                 }
                 $("#total-impact").text(roundPercentage(totalImpact, 2).toString())
                 $("#num-statistics-table").append(tableBody);
@@ -86,7 +91,9 @@ $(function () {
         });
     }
     
-
+    $("a.btn-find").click(function () {
+          simulate();
+    })
 });
 
 
