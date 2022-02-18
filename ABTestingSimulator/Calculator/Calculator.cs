@@ -4,35 +4,39 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using MathNet.Numerics.Distributions;
 
 namespace ABTestingSimulator.Calculator
 {
     public class Calculator
     {
         public readonly CalculatorContext _context = new();
-        public async Task<List<ABTest>> SimulateABTests(int users, int impact, int testAmount)
+        public async Task<List<ABTest>> SimulateABTests(int users, int impact, int testAmount, double convertion, double targetCredebility, int percentToPass)
         {
+            _context.ABTests.RemoveRange(_context.ABTests);
+
             var result = new List<ABTest>();
             for(int i = 0; i < testAmount; i++)
             {
                 await LaunchABTests(impact);
-                await UpdateOngoingTests(users);
+                await UpdateOngoingTests(users, convertion, targetCredebility, percentToPass);
                 result.AddRange(GetTestResults());
             }
             
-            _context.ABTests.RemoveRange(_context.ABTests);
+            
             await _context.SaveChangesAsync();
             return result;
             
         }
 
-        public async Task UpdateOngoingTests(int users)
+        public async Task UpdateOngoingTests(int users, double convertion, double targetCredebility, int percentToPass)
         {
             var abTests = await _context.ABTests.Where(ab => ab.TestState == TestState.Running).ToListAsync();
+            
+            var task = SeedUsers(abTests, users, convertion, targetCredebility, percentToPass);
+            task.Wait();
             foreach (ABTest test in abTests)
             {
-                var task = SeedUsers(test, users);
-                task.Wait();
                 CalculateTotalLoss(test);
                 if (test.IsATest)
                 {
@@ -45,8 +49,8 @@ namespace ABTestingSimulator.Calculator
         {
             var result = new List<ABTest>
             {
-                _context.ABTests.Where(ab => ab.IsATest == true && ab.TestState != 0).OrderBy(ab => ab.Id).Last(),
-                _context.ABTests.Where(ab => ab.IsATest == false).OrderBy(ab => ab.Id).Last()
+                _context.ABTests.Where(ab => ab.IsATest == false).OrderBy(ab => ab.Id).Last(),
+                _context.ABTests.Where(ab => ab.IsATest == true && ab.TestState != 0).OrderBy(ab => ab.Id).Last()
             };
             return result;
         }
@@ -104,30 +108,92 @@ namespace ABTestingSimulator.Calculator
 
         }
 
-        private async Task SeedUsers(ABTest abTest, int amountOfUsers)
+        private async Task SeedUsers(List<ABTest> abTests, int amountOfUsers, double convertion, double targetCredebility, int percentToPass)
         {
             var rand = new Random();
-            var users = new List<DemoModelUser>();
+            var usersA = new List<DemoModelUser>();
+            var usersB = new List<DemoModelUser>();
+            var consistency = 0;
+            var testA = abTests.First();
+            var testB = abTests.Last();
+
+            var threshold = amountOfUsers / 10;
+
+            var totalConversionsA = 0;
+            var totalConversionsB = 0;
             for (int x = 0; x < amountOfUsers; x++)
             {
-                double warmth = Math.Round(rand.NextDouble(),2);
-                int profit = 0;
-                double updatedWarmth = warmth * (1 + ((double)abTest.Impact / 100));
-                if (0.49 < updatedWarmth)
+                DemoModelUser userA = GetUser(testA, convertion, rand);
+                if (userA.Profit == 10)
                 {
-                    profit = 10;
+                    totalConversionsA++;
                 }
-
-                var user = new DemoModelUser
+                usersA.Add(userA);
+                DemoModelUser userB = GetUser(testB, convertion, rand);
+                if (userB.Profit == 10)
                 {
-                    ABTest = abTest,
-                    Warmth = updatedWarmth,
-                    Profit = profit
-                };
-                users.Add(user);
+                    totalConversionsB++;
+                }
+                usersB.Add(userB);
+
+                if (x == threshold)
+                {
+                    double pValue = GetPValue(x, totalConversionsA, totalConversionsB);
+                    if (pValue < (1 - targetCredebility))
+                    {
+                        consistency  += 10;
+                        testA.UserAmount = x;
+                        testB.UserAmount = x;
+                        if (consistency >= percentToPass)
+                        {
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        consistency = 0;
+                    }
+                    threshold += amountOfUsers / 10;
+                }
+                testA.UserAmount = x;
+                testB.UserAmount = x;
             }
-            await _context.DemoModelUsers.AddRangeAsync(users);
+            await _context.DemoModelUsers.AddRangeAsync(usersA);
+            await _context.DemoModelUsers.AddRangeAsync(usersB);
             await _context.SaveChangesAsync();
+        }
+
+        private static DemoModelUser GetUser(ABTest abTest, double convertion, Random rand)
+        {
+            int profit = 0;
+            double updatedConversionThreshold = convertion * (1 + ((double)abTest.Impact / 100));
+            double warmth = Math.Round(rand.NextDouble(), 3);
+            if ((1 - updatedConversionThreshold) <= warmth)
+            {
+                profit = 10;
+                
+            }
+
+            var user = new DemoModelUser
+            {
+                ABTest = abTest,
+                Warmth = warmth,
+                Profit = profit
+            };
+            return (user);
+        }
+
+        private static double GetPValue(double users, double conversionsA, double conversionsB )
+        {
+            double crA = conversionsA / users;
+            double crB = conversionsB / users;
+            double seA = Math.Sqrt((crA * (1 - crA)) / users);
+            double seB = Math.Sqrt((crB * (1 - crB)) / users);
+            double seDiff = Math.Sqrt(Math.Pow(seA, 2) + Math.Pow(seB, 2));
+            double zScore = (crB - crA) / seDiff;
+            double pValue = 1 - Normal.CDF(0, 1, zScore);
+            if (pValue > 0.5) pValue = 1 - pValue;
+            return pValue;
         }
     }
 }

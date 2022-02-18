@@ -4,61 +4,72 @@
 
 <div class="col-xs-12">
     <form class="form-horizontal">
-        <div class="form-group">
-            <label for="baseline-conversion" class="col-sm-8 col-md-8 control-label">Конверсия до теста</label>
-            <div class="input-group col-sm-4 col-md-4">
+        <div class="row">
+            <div class="form-group">
                 <input type="text" class="form-control" id="baseline-conversion" value="">
-                <span class="input-group-addon">%</span>
+                <span class="input-group-addon">Конверсия до теста(%)</span>
             </div>
-        </div>
-        <div class="form-group">
-            <label for="minimal-detectable-effect" class="col-sm-8 control-label">На сколько минимально хотим повысить</label>
-            <div class="input-group col-sm-4">
+            <div class="form-group">
                 <input type="text" class="form-control" id="minimal-detectable-effect" value="">
-                <span class="input-group-addon">%</span>
+                <span class="input-group-addon">На сколько минимально хотим повысить(%)</span>
             </div>
-        </div>
-        <div class="form-group">
-            <label for="minimal-detectable-effect" class="col-sm-8 control-label">Импакт</label>
-            <div class="input-group col-sm-4">
+            <div class="form-group">
+                <input type="checkbox" id="random-impact">
+                <label for="random-impact">Random</label>
                 <input type="text" class="form-control" id="impact" value="">
-                <span class="input-group-addon">%</span>
+                <span class="input-group-addon">Импакт(%)</span>
             </div>
         </div>
-        <div class="form-group">
-            <label for="minimal-detectable-effect" class="col-sm-8 control-label">Кол-во тестов</label>
-            <div class="input-group col-sm-4">
+        <div class="row">
+            <div class="form-group">
                 <input type="text" class="form-control" id="test-amount" value="">
-                <span class="input-group-addon"></span>
+                <span class="input-group-addon">Кол-во тестов</span>
+            </div>
+            <div class="form-group">
+                <input type="text" class="form-control" id="users-per-day" value="">
+                <span class="input-group-addon">Кол-во юзеров в день</span>
+            </div>
+            <div class="form-group">
+                <input type="text" class="form-control" id="target-credebility" value="">
+                <span class="input-group-addon">Нужная достоверность</span>
+            </div>
+            <div class="form-group">
+                <input type="text" class="form-control" id="percent-to-pass" value="">
+                <span class="input-group-addon">Сколько % достоверность должна держаться</span>
             </div>
         </div>
     </form>
 </div>
 
 <div class="row" id="result-container">
-    <div class="col-md-12 text-center">
-        <h2>Ответ: <span class="label label-success" id="result_count">0</span></h2>
+    <div class="col-md-12">
+        <input type="checkbox" id="custom-user-amount">
+        <label for="custom-user-amount">Custom User Amount</label>
+        <h2>Юзеры:</h2> 
+        <input type="text" class="form-control justify-content-center" id="result_count" value="0">
     </div>
 </div>
 
-<a type="button" href="#" class="btn btn-find btn-info px-3">Start simulation</a>
+<a type="button" href="#" class="btn btn-find btn-info px-3" >Start simulation</a>
 
 <table id="num-statistics-table" class="table table-hover">
-    <thead class="thead-light">
+    <thead class="thead-dark">
         <tr>
+            <th scope="col">Test type</th>
+            <th scope="col">Conversions change(%)</th>
             <th scope="col">Conversions</th>
-            <th scope="col">Impact</th>
+            <th scope="col">Initial impact</th>
             <th scope="col">Test Passed</th>
             <th scope="col">Credibility</th>
             <th scope="col">Statistical significance(p-value)</th>
+            <th scope="col">Profit</th>
+            <th scope="col">Days passed</th>
+            <th scope="col">Total users</th>
+            <th scope="col">Total days</th>
         </tr>
     </thead>
 </table>
 
-<h5>
-    Total impact:
-    <span id="total-impact" class="badge badge-dark"></span>
-</h5>
 <input type="hidden" id="calculation-url" value="@ViewData["calculation_url"]" />
 
 @section Scripts

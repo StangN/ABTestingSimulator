@@ -3,14 +3,16 @@ using ABTestingSimulator.Calculator;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace ABTestingSimulator.Migrations
 {
     [DbContext(typeof(CalculatorContext))]
-    partial class CalculatorContextModelSnapshot : ModelSnapshot
+    [Migration("20211214140120_AddNewIndexesToDemoModelUser")]
+    partial class AddNewIndexesToDemoModelUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -35,9 +37,6 @@ namespace ABTestingSimulator.Migrations
                         .HasColumnType("int");
 
                     b.Property<int>("TotalProfit")
-                        .HasColumnType("int");
-
-                    b.Property<int>("UserAmount")
                         .HasColumnType("int");
 
                     b.HasKey("Id");

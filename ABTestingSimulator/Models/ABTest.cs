@@ -22,5 +22,7 @@ namespace ABTestingSimulator.Models
         public TestState TestState { get; set; }
 
         public bool IsATest { get; set; }
+
+        public int UserAmount { get; set; }
     }
 }

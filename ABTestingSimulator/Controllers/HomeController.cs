@@ -21,10 +21,10 @@ namespace ABTestingSimulator.Controllers
 
         [HttpGet("calculation")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> Calculation([FromQuery] int users, [FromQuery] int impact, [FromQuery] int testAmount)
+        public async Task<IActionResult> Calculation([FromQuery] int users, [FromQuery] int impact, [FromQuery] int testAmount, [FromQuery] double convertion, [FromQuery] double credebility, [FromQuery] int pass)
         {
             var calc = new Calculator.Calculator();
-            var result = await calc.SimulateABTests(users, impact, testAmount);
+            var result = await calc.SimulateABTests(users, impact, testAmount, convertion, credebility, pass);
             
             return Ok(result);
         }
